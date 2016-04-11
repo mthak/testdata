@@ -1,0 +1,82 @@
+{
+    "variables": {
+        "aws_access_key": "",
+        "aws_secret_key": "",
+        "prep_script_path": "",
+        "ami_virtualization_type": "hvm",
+        "ami":"ami-13471c23"
+    },
+    
+    "builders":[
+	    
+	{
+	    "type": "amazon-ebs",
+            "access_key": "{{user `aws_access_key`}}",
+            "secret_key": "{{user `aws_secret_key`}}",
+  	    "region": "us-west-2",
+  	    "source_ami": "{{user `ami`}}",
+  	    "instance_type": "m2.xlarge",
+  	    "ssh_username": "root",
+            "ssh_timeout": "5m",
+            "ssh_pty": true,
+  	    "ami_name": "Jenkins-Server-ubuntu12-ami-{{timestamp | clean_ami_name}}",
+            "ami_block_device_mappings": [
+             {
+                    "device_name": "/dev/sda1",
+                    "volume_type": "gp2",
+                    "volume_size": 50,
+                    "delete_on_termination": true
+                }
+            ],
+            "launch_block_device_mappings": [ {
+                "device_name": "/dev/sda1",
+                "volume_size": 50,
+                "delete_on_termination": true,
+                "volume_type": "gp2"
+            } ],
+            "tags": { "Name": "Jenkins-Server-ubuntu12.04-ami",
+                      "Description": "Jenkins server based on 12.04"
+                      },
+            "ami_regions": [ "us-west-2" ],
+            "subnet_id": "{{user `subnet_id`}}",
+            "vpc_id": "{{user `vpc_id`}}",
+            "security_group_id": "{{user `security_group`}}",
+            "associate_public_ip_address":"true"
+	}
+	
+   ],
+
+    "provisioners": [
+        
+        {"type": "shell",
+         "inline": [ "apt-get -y update",
+                     "apt-get -y install wget nscd python ",
+                     "apt-get clean all" ],
+         "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E {{ .Path }}"
+        },
+        {"type": "shell",
+         "script": "{{user `prep_script_path`}}/java_install.sh",
+         "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E {{ .Path }} true"
+        },
+        {"type": "shell",
+         "inline": [
+             "apt-get -y install cloud-utils cloud-init python python-pip nscd ntp wget",
+             "perl -pi -e 's/disable_root: 1/disable_root: 0/g' /etc/cloud/cloud.cfg",
+             "runuser -l jenkins -c "ssh-keygen -t rsa -n '' -f /var/lib/jenkins/.ssh/id_rsa"
+          ],
+         "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E {{ .Path }}"
+        },
+        {"type": "shell",
+         "start_retry_timeout": "30m",
+         "inline": [
+             "apt-get -y install jenkins",
+             "perl -pi -e 's/disable_root: 1/disable_root: 0/g' /etc/cloud/cloud.cfg",
+             "perl -pi -e 's#exit 0#resize2fs -f /dev/xvda1 && exit 0#' /etc/rc.d/rc.local" ],
+         "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E {{ .Path }}"
+        },
+        {"type": "shell",
+         "script": "{{user `prep_script_path`}}/jenkins.sh",
+         "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E {{ .Path }}"
+        }
+    ]
+}
