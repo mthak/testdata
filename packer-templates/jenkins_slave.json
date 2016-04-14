@@ -61,7 +61,8 @@
         {"type": "shell",
          "start_retry_timeout": "30m",
          "inline": [
-             "apt-get -y -f install git",
+             "apt-get -y -f install git python-pip",
+             "pip install boto_rsync",
              "perl -pi -e 's/disable_root: 1/disable_root: 0/g' /etc/cloud/cloud.cfg",
              "perl -pi -e 's#exit 0#resize2fs -f /dev/xvda1 && exit 0#' /etc/rc.d/rc.local" ],
          "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E {{ .Path }}"
@@ -72,6 +73,10 @@
         },
         {"type": "shell",
          "script": "{{user `prep_script_path`}}/maven_install.sh",
+         "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E {{ .Path }} true"
+        },
+        {"type": "shell",
+         "script": "{{user `prep_script_path`}}/s3install.sh",
          "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E {{ .Path }} true"
         },
         {"type": "shell",
